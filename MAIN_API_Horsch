@@ -1,0 +1,300 @@
+
+
+
+# %%
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+from matplotlib import pyplot
+import sklearn
+import seaborn as sns
+from IPython.display import display
+from shapely.geometry import Point, Polygon
+import geopandas as gpd
+import sys
+import os
+from scipy.stats import linregress
+from scipy import stats
+from scipy.interpolate import griddata
+import rasterio
+from rasterio.plot import show
+import tkinter as tk
+from tkinter import Tk
+from tkinter.filedialog import askopenfilename
+import os
+
+from sklearn.cluster import KMeans
+from sklearn.linear_model import RANSACRegressor
+from sklearn.linear_model import LinearRegression
+
+from scipy.stats import shapiro
+import scipy.stats
+
+from scipy.spatial import cKDTree
+
+import dask.dataframe as dd
+
+
+import pykrige
+from pykrige.ok import OrdinaryKriging
+from pykrige import variogram_models
+
+import datetime
+
+second_directory = r'C:\Users\ghirg\OneDrive\Visual_studio\My_Packages'
+sys.path.append(os.path.abspath(second_directory))
+
+from Harveststats1 import* 
+#"C:\Users\ghirg\OneDrive\Visual_studio\My_Packages\Harveststats1.py"
+#%%
+from shapely.geometry import Point
+import json
+import requests
+#%%
+
+
+#%%
+#"2024-10-31T12:00:10.161Z"
+#url2 = "'https://telematics-api.horsch.com/v1.0/machine/24791475/telemetry?pageSize=1000&recordedFrom=2024-10-19T11%3A39%3A10.161Z&recordedTo=2024-10-19T12%3A39%3A10.161Z' \--header 'X-API-KEY: Bearer RQuLKJpiTMa1dQnDJU5_GQ=='"
+chassisNumber = '24791435'
+url = f"https://telematics-api.horsch.com/v1.0/machine/{chassisNumber}/telemetry"
+for i in range(14,30):
+    print(i)
+
+    tempoinicial = f"2024-10-{i}T00:00:00.000Z"
+    tempofinal = f"2024-10-{i}T23:59:59.999"
+    hoje = datetime.datetime.now().isoformat()
+    print(tempoinicial,tempofinal)
+    params = {
+        "recordedFrom": tempoinicial,  # Ajuste o tempo inicial
+        "recordedTo": tempofinal    # Ajuste o tempo final
+    }
+
+    # Cabeçalhos (caso precise de chave de API)
+    headers = {
+        "X-API-KEY": "odul9gbFTR-zEeMP6SIVLg=="
+    }
+
+    #'Bearer RQuLKJpiTMa1dQnDJU5_GQ=='
+
+    response = requests.get(url, headers=headers, params=params)
+
+    # Verificando se a requisição foi bem-sucedida
+
+    response
+
+    lista = []
+
+    if response.status_code == 200:
+        raw = response.json()  # Converte a resposta para JSON
+        
+        # Exibindo os dados da máquina
+        machine_info = raw.get("machine", {})
+        print("Informações da Máquina:")
+        print(f"Chassi: {machine_info.get('chassisNumber')}")
+        print(f"Nome: {machine_info.get('name')}")
+        print(f"Modelo: {machine_info.get('model')}")
+        
+        # Exibindo os dados de telemetria
+        geojson_data = raw.get("geoJson", {}).get("features", [])
+        print("\nDados de Telemetria:")
+        
+        for feature in geojson_data:
+            properties = feature.get("properties", {})
+            geometry = feature.get('geometry', [])
+            coord = feature.get('geometry', []).get('coordinates')
+            
+            recorded_at = properties.get("recordedAt")
+            stored_at = properties.get("storedAt")
+            velocity = properties.get("velocity", {}).get("value", "N/A")
+            velocity_unit = properties.get("velocity", {}).get("unit")
+            hoppers = properties.get("hoppers", {})
+            working = properties.get('working', [])
+            course  = properties.get('course', []).get('value')
+
+            lifetime = properties.get('lifetimeTotalArea', {}).get('value')  
+            lifetime_unit = properties.get('lifetimeTotalArea', {}).get('unit')  
+
+            print(f"\nRegistro em: {recorded_at}")
+            #print(f"Velocidade: {velocity} km/h")
+            print(f'trabalho: {working}')
+            print(f'total: {lifetime}, {lifetime_unit}')
+            #print(hoppers)
+            
+            # Exibindo dados dos hoppers (caçambas)
+            for hopper in hoppers:
+                cropType = hopper.get('cropType')
+            
+            # Exibindo dados dos booms (braços)
+            booms = properties.get("booms", [])
+            for boom in booms:
+                """
+                print(f"Boom: {boom.get('boom')}")
+                print(f"Coeficiente de Variação: {boom.get('variationCoefficient', {}).get('value')} %")
+                print(f"Taxa de Sementes Planejada: {boom.get('setpoint', {}).get('value')} {boom.get('setpoint', {}).get('unit')}")
+                print(f"Taxa de Sementes Atual: {boom.get('actual', {}).get('value')} {boom.get('actual', {}).get('unit')}")
+                """
+                cv = booms[0].get('variationCoefficient', {}).get('value')
+                cv_unit = booms[0].get('variationCoefficient', {}).get('unit')
+                setpoint =  booms[0].get('setpoint', {}).get('value')
+                setpoint_unit =  booms[0].get('setpoint', {}).get('unit')
+                actual =  booms[0].get('actual', {}).get('value')
+                actual_unit =  booms[0].get('actual', {}).get('unit')
+                skips =  booms[0].get('Skips', {}).get('value')
+                skips_unit =  booms[0].get('Skips', {}).get('unit')
+                doubles =  booms[0].get('Doubles', {}).get('value')
+                doubles_unit =  booms[0].get('Doubles', {}).get('unit')
+                if len(booms) >1:
+                    print(f'setpoint_fert1{ booms}')
+                    setpoint_fert =  booms[1].get('setpoint', {}).get('value')
+                    print(f'setpoint_fert{setpoint_fert}')
+                    setpoint_fert_unit =  booms[1].get('setpoint', {}).get('unit')
+                    actual_fert =  booms[1].get('actual', {}).get('value')
+                    actual_fert_unit =  booms[1].get('actual', {}).get('unit')
+                else:
+                    setpoint_fert = 0
+                    setpoint_fert_unit = None
+                
+                lista.append([properties, geometry,coord[0], coord[1], recorded_at, stored_at, velocity,velocity_unit,  working, cropType, course, lifetime, lifetime_unit, cv, cv_unit, setpoint, setpoint_unit, actual, actual_unit, skips,skips_unit, doubles, doubles_unit, setpoint_fert, setpoint_fert_unit, actual_fert, actual_fert_unit])    
+    else:
+        print(f"Erro: {response.status_code}")
+
+
+    df = pd.DataFrame(lista, columns=['properties','geometry','latitude','longitude', 'recorded_at', 'stored_at', 'velocity','vel_unit','working', 'hoppers','course','lifetime','life_unit', 'cv','cv_unit', 'setpoint','set_unit', 'actual','act_unit',  'skips','sk_unit', 'doubles','db_unit', 'setpoint_2', 'set2_unit','actual_2', 'act2_unit'])
+
+
+    df.to_csv(fr"C:\\Users\\ghirg\\OneDrive\\Dados de máquinas\\2024\\Não processados\\Extracao_totais_plantio\\api_Horsch\\dados_plantio_horsch__{i}.csv", encoding = 'utf-8')
+    df2 = df.drop(['properties', 'geometry'], axis = 1)
+    gdf = gpd.GeoDataFrame(df2, geometry=gpd.points_from_xy(df['latitude'], df['longitude']), crs='EPSG:4326')
+    gdf.to_file(fr"C:\\Users\\ghirg\\OneDrive\\Dados de máquinas\\2024\\Não processados\\Extracao_totais_plantio\\api_Horsch\\dados_plantio_horsch__{i}.gpkg", driver='GPKG')
+
+#%%
+
+print(geojson_data[3])
+
+for i in geojson_data:
+    print(i[0])
+   #boooom= properties.get('booms',[])
+    #print(boooom[0].get('setpoint',{}))
+
+    #for bom in boooom:
+    #    print(bom.get('setpoint', {}).get('value'))
+    
+#%%
+
+
+
+#geometry = [Point(xy) for xy in zip(feature['geometry']['coordinates'][1], feature['geometry']['coordinates'][0])]
+
+for feature in geojson_data:
+    print(feature)
+    #%%
+
+#%%
+
+#%%
+
+
+
+#%%
+
+"""
+================================================================================================================================================================================================
+================================================================================================================================================================================================
+================================================================================================================================================================================================
+================================================================================================================================================================================================
+================================================================================================================================================================================================
+"""
+
+# Extraindo as "features"
+features = raw['geoJson']['features']
+
+# Lista para armazenar os dados das features
+data = []
+
+# Percorrer as features e extrair as coordenadas e propriedades
+for feature in features:
+    # Extrair coordenadas
+    coordinates = feature['geometry']['coordinates']
+    longitude = coordinates[0]
+    latitude = coordinates[1]
+    
+    # Extrair propriedades
+    properties = feature['properties']
+    recorded_at = properties['recordedAt']
+    velocity = properties['velocity']['value']
+    course = properties['course']['value']
+    working = properties['working']
+    actual = feature['boom']
+    
+    # Adicionar dados à lista
+    data.append([longitude, latitude, recorded_at, velocity, course, working])
+
+# Criar DataFrame a partir dos dados
+df = pd.DataFrame(data, columns=['Longitude', 'Latitude', 'RecordedAt', 'Velocity (km/h)', 'Course (degrees)', 'Working'])
+
+print(df)
+#%%
+
+raw['geoJson']['features']['setpoint']
+#%%
+
+# Checando se a requisição foi bem-sucedida
+if response.status_code == 200:
+    # Convertendo a resposta em formato JSON
+    data = response.json()
+    
+    # Verificando o próximo cursor para paginação
+    next_cursor = data.get('nextCursor')
+    print(f"Próximo cursor: {next_cursor}")
+    
+    # Pegando a parte GeoJSON
+    geo_data = data.get('geoJson')
+    
+    # Iterando sobre os recursos (features) no GeoJSON
+    for feature in geo_data['features']:
+        geometry = feature['geometry']
+        properties = feature['properties']
+        
+        # Coordenadas do ponto
+        coordinates = geometry['coordinates']
+        chassis_number = properties['chassisNumber']
+        name = properties['name']
+        model = properties['model']
+        recorded_at = properties['recordedAt']
+        
+        print(f"Maquinário {name} (Chassi: {chassis_number})")
+        print(f"Modelo: {model}")
+        print(f"Localização: {coordinates}")
+        print(f"Registrado em: {recorded_at}")
+        print("\n")
+else:
+    print(f"Erro ao acessar a API: {response.status_code}")
+
+"""
+================================================================================================================================================================================================
+================================================================================================================================================================================================
+================================================================================================================================================================================================
+================================================================================================================================================================================================
+================================================================================================================================================================================================
+"""
+
+# %%
+#df["recorded_at"] = pd.to_datetime(df['recorded_at'], dayfirst=True, format='ISO8601')
+df
+
+#%%
+df['recorded_at'].max()
+df['recorded_at'].min()
+
+#%%
+df.boxplot(column = ['cv'], by = ['working'])
+plt.show()
+
+worke= df[df['working'] == True]
+
+#%%
+plt.hist(worke['cv'], bins = 50, color = 'darkblue')
+plt.show()
+plt.hist(worke['velocity'], bins = 50, color = 'darkblue')
+plt.show()
